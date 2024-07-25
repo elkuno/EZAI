@@ -9,7 +9,7 @@ if __name__ == "__main__":
     data_dir = 'EMNIST_dataset/emnist-digits'
 
     # Create EZDataset object
-    dataset = EZDataset(data_dir, batch_size=64, num_workers=8, pin_memory=True, sampling_rate=0.1)
+    dataset = EZDataset(data_dir, batch_size=64, num_workers=8, pin_memory=True, sampling_rate=0.05)
 
     # Get the number of classes
     num_classes = dataset.get_num_classes()
@@ -17,14 +17,13 @@ if __name__ == "__main__":
 
     # Select a model
     model = CNNModel(num_classes)
-    # model = get_pretrained_model('resnet18', num_classes=num_classes, weights=True)
 
     # Train model
     trainer = Trainer(model, dataset, epochs=10)
-    trainer.train()
+    trainer.train(plot_graph=True)
 
     # Save model
     save_model(model, 'my_model.pth')
 
     # Load model
-    loaded_model = load_model(CNNModel, 'my_model.pth')
+    loaded_model = load_model(CNNModel(num_classes), 'my_model.pth')

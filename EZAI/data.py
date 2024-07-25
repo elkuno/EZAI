@@ -7,6 +7,7 @@ import numpy as np
 class EZDataset:
     def __init__(self, data_dir, batch_size=32, image_size=(224, 224), test_split=0.2, val_split=0.1, num_workers=1, pin_memory=False, sampling_rate=1):
         print(f"pin_memory: {pin_memory}")
+        print(f"sampling_rate: {sampling_rate}")
         print("Initializing EZDataset...")
         self.data_dir = data_dir
         self.batch_size = batch_size
