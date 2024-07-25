@@ -1,7 +1,6 @@
 EMNIST_dataset/
 EZAI.egg-info/
 best_model.pth
-setup.py
 venv/
 
 # Ignore Python cache files
