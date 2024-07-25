@@ -9,9 +9,9 @@ if __name__ == "__main__":
     data_dir = 'EMNIST_dataset/emnist-digits'
 
     # Create EZDataset object
-    dataset = EZDataset(data_dir, batch_size=64, num_workers=8, pin_memory=True)
+    dataset = EZDataset(data_dir, batch_size=64, num_workers=8, pin_memory=True, sampling_rate=0.1)
 
-    # Get the number of classes using the new getter method
+    # Get the number of classes
     num_classes = dataset.get_num_classes()
     print(f"Number of classes: {num_classes}")
 
@@ -27,4 +27,4 @@ if __name__ == "__main__":
     save_model(model, 'my_model.pth')
 
     # Load model
-    loaded_model = load_model(get_pretrained_model('resnet18', num_classes=num_classes, weights=False), 'my_model.pth')
+    loaded_model = load_model(CNNModel, 'my_model.pth')

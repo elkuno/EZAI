@@ -2,9 +2,10 @@ import os
 import torch
 from torch.utils.data import DataLoader, random_split, Subset
 from torchvision import datasets, transforms
+import numpy as np
 
 class EZDataset:
-    def __init__(self, data_dir, batch_size=32, image_size=(224, 224), test_split=0.2, val_split=0.1, num_workers=1, pin_memory=False):
+    def __init__(self, data_dir, batch_size=32, image_size=(224, 224), test_split=0.2, val_split=0.1, num_workers=1, pin_memory=False, sampling_rate=1):
         print(f"pin_memory: {pin_memory}")
         print("Initializing EZDataset...")
         self.data_dir = data_dir
@@ -14,6 +15,7 @@ class EZDataset:
         self.val_split = val_split
         self.num_workers = num_workers
         self.pin_memory = pin_memory
+        self.sampling_rate = sampling_rate
 
         self.transform = transforms.Compose([
             transforms.Resize(image_size),
@@ -29,7 +31,7 @@ class EZDataset:
         if self._is_train_test_split(self.data_dir):
             print(f"Loading train data from {os.path.join(self.data_dir, 'train')}")
             train_loader, val_loader = self._load_split_data(os.path.join(self.data_dir, 'train'))
-            train_classes = self._get_classes_from_loader(train_loader)
+            train_classes = self._get_classes_from_dataset(train_loader.dataset)
             print(f"Train data loaded with classes: {train_classes}")
 
             print(f"Loading test data from {os.path.join(self.data_dir, 'test')}")
@@ -41,24 +43,7 @@ class EZDataset:
 
             return train_loader, val_loader, test_loader, train_classes
         else:
-            full_dataset = datasets.ImageFolder(root=self.data_dir, transform=self.transform)
-            num_total = len(full_dataset)
-            num_test = int(self.test_split * num_total)
-            num_val = int(self.val_split * (num_total - num_test))
-            num_train = num_total - num_test - num_val
-
-            print(f"Total samples: {num_total}, Train samples: {num_train}, Val samples: {num_val}, Test samples: {num_test}")
-
-            if num_train <= 0 or num_val < 0 or num_test <= 0:
-                raise ValueError("Dataset split results in zero samples for one or more splits.")
-
-            train_set, val_set, test_set = random_split(full_dataset, [num_train, num_val, num_test])
-
-            train_loader = DataLoader(train_set, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers, pin_memory=self.pin_memory) if num_train > 0 else None
-            val_loader = DataLoader(val_set, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, pin_memory=self.pin_memory) if num_val > 0 else None
-            test_loader = DataLoader(test_set, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, pin_memory=self.pin_memory) if num_test > 0 else None
-
-            return train_loader, val_loader, test_loader, full_dataset.classes
+            raise ValueError("Expected directory structure: <data_dir>/train and <data_dir>/test")
 
     def _is_train_test_split(self, data_dir):
         return os.path.exists(os.path.join(data_dir, 'train')) and os.path.exists(os.path.join(data_dir, 'test'))
@@ -67,6 +52,13 @@ class EZDataset:
         val_split = self.val_split if val_split is None else val_split
 
         full_dataset = datasets.ImageFolder(root=split_dir, transform=self.transform)
+        
+        # Apply sampling if sampling_rate is specified
+        if self.sampling_rate < 1:
+            num_samples = int(len(full_dataset) * self.sampling_rate)
+            indices = np.random.choice(len(full_dataset), num_samples, replace=False)
+            full_dataset = Subset(full_dataset, indices)
+        
         num_total = len(full_dataset)
         num_val = int(val_split * num_total)
         num_train = num_total - num_val
@@ -85,19 +77,28 @@ class EZDataset:
 
     def _load_data_from_dir(self, dir_path, class_names):
         dataset = datasets.ImageFolder(root=dir_path, transform=self.transform)
+        
+        # Apply sampling if sampling_rate is specified
+        if self.sampling_rate < 1:
+            num_samples = int(len(dataset) * self.sampling_rate)
+            indices = np.random.choice(len(dataset), num_samples, replace=False)
+            dataset = Subset(dataset, indices)
 
-        if set(dataset.classes) != set(class_names):
+        # Get classes from the underlying dataset
+        dataset_classes = self._get_classes_from_dataset(dataset)
+
+        if set(dataset_classes) != set(class_names):
             raise ValueError("Class names in directory do not match expected class names")
 
         data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, pin_memory=self.pin_memory)
 
-        return data_loader, dataset.classes
+        return data_loader, dataset_classes
 
-    def _get_classes_from_loader(self, loader):
-        if isinstance(loader.dataset, Subset):
-            return loader.dataset.dataset.classes
-        else:
-            return loader.dataset.classes
+    def _get_classes_from_dataset(self, dataset):
+        # Recursively get the classes from the underlying dataset
+        while isinstance(dataset, Subset):
+            dataset = dataset.dataset
+        return dataset.classes
 
     def get_loaders(self):
         return self.train_loader, self.val_loader, self.test_loader
